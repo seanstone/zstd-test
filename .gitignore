@@ -1,2 +1,4 @@
 zstd-test
+zstd-compress
+zstd-decompress
 *.zst
