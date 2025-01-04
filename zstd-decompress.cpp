@@ -8,8 +8,8 @@
 #define CHUNK_SIZE 16384
 
 void decompressFile(const std::string inputFile, const std::string outputFile) {
-    int fin = open(inputFile.c_str(), O_RDONLY);
-    int fout = open(outputFile.c_str(), O_WRONLY);
+    int fin = open(inputFile.c_str(), O_RDONLY, 0644);
+    int fout = open(outputFile.c_str(), O_WRONLY | O_CREAT, 0644);
     if (fin < 0 || fout < 0) {
         perror("File open error");
         exit(EXIT_FAILURE);
