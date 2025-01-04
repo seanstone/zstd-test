@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define CHUNK_SIZE 16384
+#define CHUNK_SIZE 262144
 
 void decompressFile(const std::string inputFile, const std::string outputFile) {
     int fin = open(inputFile.c_str(), O_RDONLY, 0644);
