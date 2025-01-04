@@ -15,19 +15,40 @@ void decompressFile(const std::string inputFile, const std::string outputFile) {
         exit(EXIT_FAILURE);
     }
 
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    if (dctx == NULL) {
+        fprintf(stderr, "ZSTD_createDCtx() error\n");
+        exit(EXIT_FAILURE);
+    }
+
     char inBuff[CHUNK_SIZE];
     char outBuff[CHUNK_SIZE];
 
-    size_t n, decompressedSize;
+    size_t n;
+    ZSTD_inBuffer input = { inBuff, 0, 0 };
+    ZSTD_outBuffer output = { outBuff, sizeof(outBuff), 0 };
+
     while ((n = read(fin, inBuff, CHUNK_SIZE)) > 0) {
-        decompressedSize = ZSTD_decompress(outBuff, CHUNK_SIZE, inBuff, n);
-        if (ZSTD_isError(decompressedSize)) {
-            fprintf(stderr, "Decompression error: %s\n", ZSTD_getErrorName(decompressedSize));
-            exit(EXIT_FAILURE);
+        input.src = inBuff;
+        input.size = n;
+        input.pos = 0;
+
+        while (input.pos < input.size) {
+            output.dst = outBuff;
+            output.size = sizeof(outBuff);
+            output.pos = 0;
+
+            size_t ret = ZSTD_decompressStream(dctx, &output, &input);
+            if (ZSTD_isError(ret)) {
+                fprintf(stderr, "Decompression error: %s\n", ZSTD_getErrorName(ret));
+                exit(EXIT_FAILURE);
+            }
+
+            write(fout, outBuff, output.pos);
         }
-        write(fout, outBuff, decompressedSize);
     }
 
+    ZSTD_freeDCtx(dctx);
     close(fin);
     close(fout);
 }

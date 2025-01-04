@@ -15,19 +15,52 @@ void compressFile(const std::string inputFile, const std::string outputFile) {
         exit(EXIT_FAILURE);
     }
 
+    ZSTD_CCtx* cctx = ZSTD_createCCtx();
+    if (cctx == NULL) {
+        fprintf(stderr, "ZSTD_createCCtx() error\n");
+        exit(EXIT_FAILURE);
+    }
+
     char inBuff[CHUNK_SIZE];
     char outBuff[ZSTD_compressBound(CHUNK_SIZE)];
 
-    size_t n, compressedSize;
-    while ((n = read(fin, inBuff, CHUNK_SIZE)) > 0) {
-        compressedSize = ZSTD_compress(outBuff, ZSTD_compressBound(CHUNK_SIZE), inBuff, n, 1);
-        if (ZSTD_isError(compressedSize)) {
-            fprintf(stderr, "Compression error: %s\n", ZSTD_getErrorName(compressedSize));
-            exit(EXIT_FAILURE);
+    size_t n, toRead = CHUNK_SIZE;
+    ZSTD_inBuffer input = { inBuff, 0, 0 };
+    ZSTD_outBuffer output = { outBuff, sizeof(outBuff), 0 };
+
+    while ((n = read(fin, inBuff, toRead)) > 0) {
+        input.src = inBuff;
+        input.size = n;
+        input.pos = 0;
+
+        while (input.pos < input.size) {
+            output.dst = outBuff;
+            output.size = sizeof(outBuff);
+            output.pos = 0;
+
+            size_t ret = ZSTD_compressStream(cctx, &output, &input);
+            if (ZSTD_isError(ret)) {
+                fprintf(stderr, "Compression error: %s\n", ZSTD_getErrorName(ret));
+                exit(EXIT_FAILURE);
+            }
+
+            write(fout, outBuff, output.pos);
         }
-        write(fout, outBuff, compressedSize);
     }
 
+    output.dst = outBuff;
+    output.size = sizeof(outBuff);
+    output.pos = 0;
+
+    size_t ret = ZSTD_endStream(cctx, &output);
+    if (ZSTD_isError(ret)) {
+        fprintf(stderr, "ZSTD_endStream() error: %s\n", ZSTD_getErrorName(ret));
+        exit(EXIT_FAILURE);
+    }
+
+    write(fout, outBuff, output.pos);
+
+    ZSTD_freeCCtx(cctx);
     close(fin);
     close(fout);
 }
